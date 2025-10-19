@@ -1,0 +1,22 @@
+[project]
+name = "tak"
+version = "0.1.0"
+description = "Platform for the game Tak"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = []
+
+[dependency-groups]
+dev = [
+  "ruff>=0.9.0",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["tak"]
+
+[project.scripts]
+tak = "tak.main:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
