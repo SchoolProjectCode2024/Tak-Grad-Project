@@ -117,7 +117,7 @@ class Board:
         pass
 
     def is_full(self) -> bool:
-        return any(self.non_empty_tiles())
+        return all(self.tiles())
 
     def get_winner(self) -> Color | None:
         if self.is_full():
@@ -145,8 +145,10 @@ class Game:
 
 
 def start_menu() -> None:
-    boardsize = int(input("Choose board size: "))
-    board = Board(boardsize)
+    board_size = int(input("Choose board size (4 - 8): "))
+    if board_size not in range(4, 9):
+        raise ValueError("Not a valid board size")
+    board = Board(board_size)
     komi = 0.5  # TODO: add as input
     # game = Game(board, komi=komi, turncount=0)
 
@@ -158,7 +160,7 @@ def start_menu() -> None:
 
 
 def create_board(size: int) -> list:
-    return [[Tile([]) for _ in range(size)] for _ in range(size)]
+    return [[Tile([  ]) for _ in range(size)] for _ in range(size)]
 
 
 def turn() -> None:
