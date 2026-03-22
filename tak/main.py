@@ -6,8 +6,10 @@ from enum import StrEnum, auto
 class Color(StrEnum):
     Black = auto()
     White = auto()
+
     def char(self) -> str:
         return str(self)[0]
+
 
 class PieceType(StrEnum):
     Road = auto()
@@ -16,6 +18,7 @@ class PieceType(StrEnum):
 
     def char(self) -> str:
         return str(self)[0].upper()
+
 
 @dataclass
 class Piece:
@@ -27,6 +30,7 @@ class Piece:
 
     def __iter__(self):
         yield self
+
 
 class Player:
     color: Color
@@ -75,7 +79,9 @@ class Player:
     def has_pieces(self) -> bool:
         return self.piece_counter + self.capstone_counter != 0
 
+
 type TilePointer = tuple[int, int]
+
 
 @dataclass
 class Tile:
@@ -115,7 +121,8 @@ class Board:
     def __init__(self, boardsize: int):
         self.size = boardsize
         self.board = self.create_board(boardsize)
-    #unindexed
+
+    # unindexed
     """ def __str__(self) -> str:
         board_visual = []
         for y in range(self.size):
@@ -124,7 +131,8 @@ class Board:
                 row_visual.append(f"{self.board[y][x]}")
             board_visual.append(" ".join(row_visual))  # must be string for .join
         return "\n".join(board_visual) """
-    #indexed
+
+    # indexed
     def __str__(self) -> str:
         board_visual = []
         index_row = [""]
@@ -139,7 +147,7 @@ class Board:
         return "\n".join(board_visual)
 
     def create_board(self, size: int) -> list:
-        return [[Tile([  ]) for _ in range(size)] for _ in range(size)]
+        return [[Tile([]) for _ in range(size)] for _ in range(size)]
 
     def tiles(self) -> Iterator[Tile]:
         for row in self.board:
@@ -149,26 +157,34 @@ class Board:
         for tile in self.tiles():
             if tile:
                 yield tile
+
     def get_row(self, x: int) -> Iterator[Tile]:
-            yield from self[x]
+        yield from self.board[x]
 
     def get_column(self, y: int) -> Iterator[Tile]:
         for x in range(self.size):
-            yield self[y][x]
+            yield self.board[y][x]
 
-    def move(self, src:TilePointer, dst:TilePointer, amount:int) -> None:
+    def move(self, src: TilePointer, dst: TilePointer, amount: int) -> None:
         pass
 
-    def get_tile(self, ptr:TilePointer) -> Tile | None:
+    def in_board(self, ptr: TilePointer) -> bool:
         x, y = ptr
-        if x in range(self.size) and y in range(self.size):
+        return x in range(self.size) and y in range(self.size)
+
+    def get_tile(self, ptr: TilePointer) -> Tile | None:
+        if self.in_board(ptr):
+            x, y = ptr
             return self.board[y][x]
         return None
-    def add_pieces(self, ptr:TilePointer, pieces: Iterable[Piece]) -> None:
+
+    def add_pieces(self, ptr: TilePointer, pieces: Iterable[Piece]) -> None:
         self.get_tile(ptr).add_pieces(pieces)
 
-    def clear_tile(self, ptr:TilePointer) -> None:
-        self.get_tile(ptr).clear()
+    def clear_tile(self, ptr: TilePointer) -> None:
+        if self.get_tile(ptr):
+            tile = self.get_tile(ptr)
+            tile.clear()
 
     def is_legal_move(self) -> bool:
         pass
@@ -176,8 +192,12 @@ class Board:
     def is_full(self) -> bool:
         return all(self.tiles())
 
-    def endscreen() -> None:
-        pass
+    def neighbors(self, ptr: TilePointer) -> Iterator[TilePointer]:
+        x_og, y_og = ptr
+        for dx, dy in (1, 0), (-1, 0), (0, 1), (0, -1):
+            ptr = x_og + dx, y_og + dy
+            if self.in_board(ptr):
+                yield ptr
 
 
 @dataclass
@@ -213,104 +233,108 @@ class Game:
         print(self.board)
 
     def get_winner(self) -> Color | None | str:  # noqa: PLR0912
-            if self.is_full() or not self.player_white.has_pieces() or not self.player_black.has_pieces():  # noqa: E501
-                white_points = 0
-                black_points = self.komi
-                for tile in self.board.non_empty_tiles():
-                    owner = tile.owner()
-                    if owner == Color.White:
-                        white_points += 1
-                    if owner == Color.Black:
-                        black_points += 1
+        if (
+            self.board.is_full()
+            or not self.player_white.has_pieces()
+            or not self.player_black.has_pieces()
+        ):
+            white_points = 0
+            black_points = self.komi
+            for tile in self.board.non_empty_tiles():
+                owner = tile.owner()
+                if owner == Color.White:
+                    white_points += 1
+                if owner == Color.Black:
+                    black_points += 1
 
-                if white_points > black_points:
-                    return Color.White
-                if white_points < black_points:
-                    return Color.Black
-                if white_points == black_points:
-                    return "tie"
+            if white_points > black_points:
+                return Color.White
+            if white_points < black_points:
+                return Color.Black
+            if white_points == black_points:
+                return "tie"
 
-            #check if board can contain a connection
-            current_color = self.turn_color()
-            both_colors = [Color.White, Color.Black]
-            both_colors.remove(current_color)
-            colors = [current_color, both_colors[0]]
-            conn_hor = True
-            conn_ver = True
-            for color in colors:
-                for i in range(self.board.size):
-                    this_row = False
-                    this_column = False
-                    for tile in self.board.get_row(i):
-                        if tile.owner() == color:
-                            this_row = True
-                    for tile in self.board.get_column(i):
-                        if tile.owner() == color:
-                            this_column = True
-                    if not this_column:
-                        conn_hor = False
-                        break
-                    if not this_row:
-                        conn_ver = False
-                        break
-                if conn_ver or conn_hor:  # noqa: SIM102
-                    if self.check_connection(color):
-                        return color
-            return None
+        # check if board can contain a connection
+        current_color = self.turn_color()
+        both_colors = [Color.White, Color.Black]
+        both_colors.remove(current_color)
+        colors = [current_color, both_colors[0]]
+        conn_hor = True
+        conn_ver = True
+        for color in colors:
+            for i in range(self.board.size):
+                this_row = False
+                this_column = False
+                for tile in list(self.board.get_row(i)):
+                    if tile.owner() == color:
+                        this_row = True
+                for tile in list(self.board.get_column(i)):
+                    if tile.owner() == color:
+                        this_column = True
+                if not this_column:
+                    conn_hor = False
+                    break
+                if not this_row:
+                    conn_ver = False
+                    break
+            if conn_ver or conn_hor:  # noqa: SIM102
+                if self.check_connection(color):
+                    return color
+        return None
 
     def check_connection(self, color: Color) -> bool:  # noqa: PLR0912
-        for tile in (self.board.get_column(0) + self.board.get_row(0)):
-            if tile.owner() == color:
-                checked = []
-                new_checked = []
-                new_checked.append(tile)
-                while new_checked:
-                    checked.append(new_checked[-1])
-                    new_checked.remove(new_checked[-1])
-                    y_org, x_org = self.board.get_tile(new_checked[-1])
-                    for x in range(x_org-1, x_org+2):
-                        if x != x_org:
-                            new_tile = self.board.get_tile(x, y_org)
-                            if not (new_tile in checked or new_tile in new_checked):
-                                new_checked.append(new_tile)
-                        if x == x_org:
-                            for y in range(y_org - 1, y_org + 2):
-                                new_tile = self.board.get_tile(x, y)
-                                if not (new_tile in checked or new_tile in new_checked):
-                                    new_checked.append(new_tile)
-                x_0, x_max, y_0, y_max = (False,) * 4
-                for link in checked:
-                    x, y = self.board.get_tile(link)
-                    if x == 0:
-                        x_0 = True
-                    if x == self.board.size:
-                        x_max = True
-                    if y == 0:
-                        y_0 = True
-                    if y == self.board.size:
-                        y_max = True
-                if (x_0 and x_max) or (y_0 and y_max):
-                    return True
+        base_column = list(self.board.get_column(0))
+        base_row = list(self.board.get_row(0))
+        for tile in base_column + base_row:
+            if tile.owner() != color:
+                continue
+
+            visited = set()
+            stack = [tile]
+            while stack:
+                current_tile = stack.pop()
+
+                if current_tile in visited:
+                    continue
+
+                visited.add(current_tile)
+
+                for x, y in self.board.neighbors(current_tile):
+                    new_tile = self.board.get_tile(x, y)
+                    stack.append(new_tile)
+
+            x_0, x_max, y_0, y_max = (False,) * 4
+            for link in visited:
+                x, y = self.board.get_tile(link)
+                if x == 0:
+                    x_0 = True
+                if x == self.board.size - 1:
+                    x_max = True
+                if y == 0:
+                    y_0 = True
+                if y == self.board.size - 1:
+                    y_max = True
+            if (x_0 and x_max) or (y_0 and y_max):
+                return True
         return False
 
     def turn_color(self) -> Color:
-        if self.turn_count > 2:
-            turn_color = Color.Black if self.turn_count % 2 else Color.White
-        else:
-            turn_color = Color.White if self.turn_count % 2 else Color.Black
-        return turn_color
+        if self.turn_count <= 2:
+            return Color.Black if self.turn_count % 2 else Color.White
+
+        return Color.White if self.turn_count % 2 else Color.Black
 
     def running_game(self) -> None:
-        while self.board.get_winner() is None:
+        while self.get_winner() is None:
             self.turn()
-        if self.board.get_winner() is Color:
-            print(f"The {self.board.get_winner()} player is the winner.")
-        if self.board.get_winner() == "tie":
+        if self.get_winner() is Color:
+            print(f"The {self.get_winner()} player is the winner.")
+        if self.get_winner() == "tie":
             print("The game is a tie")
         print("Finish the rest.")
 
     def parse_move_input(self, turn_input: list) -> list:  # noqa: PLR0912
-        #parse action type
+        # parse action type
         instructions = []
         if turn_input[0] == "P" or "M":
             if turn_input[0] == "P":
@@ -319,17 +343,17 @@ class Game:
                 instructions.append("move")
         else:
             raise ValueError("Incorrect input - action type.")
-        #parse placing
+        # parse placing
         if turn_input[0] == "P":
-            #parse placement
-            coordinates = turn_input[1].split(",")
-            x = int(coordinates[0])  - 1
+            # parse placement
+            coordinates = str(turn_input[1]).split(",")
+            x = int(coordinates[0]) - 1
             y = self.board.size - int(coordinates[1])
             if isinstance(self.board.get_tile((x, y)), Tile):
                 instructions.append((x, y))
             else:
                 raise ValueError("Incorrect input - not a valid tile.")
-            #parse piece type
+            # parse piece type
             if turn_input[2] == "R":
                 instructions.append(PieceType.Road)
             elif turn_input[2] == "W":
@@ -338,27 +362,27 @@ class Game:
                 instructions.append(PieceType.Capstone)
             else:
                 raise ValueError("Incorrect input - not a valid piece.")
-        #parse moving
+        # parse moving
         if turn_input[0] == "M":
-            #parse org placement
-            coordinates = turn_input[1].split(",")
-            x = int(coordinates[0])  - 1
+            # parse org placement
+            coordinates = str(turn_input[1]).split(",")
+            x = int(coordinates[0]) - 1
             y = self.board.size - int(coordinates[1])
             if self.board.get_tile((x, y)):
                 instructions.append((x, y))
             else:
                 raise ValueError("Incorrect input - not a valid tile.")
 
-            #parse new placement
-            coordinates = turn_input[2].split(",")
-            x = int(coordinates[0])  - 1
+            # parse new placement
+            coordinates = str(turn_input[2]).split(",")
+            x = int(coordinates[0]) - 1
             y = self.board.size - int(coordinates[1])
             if self.board.get_tile((x, y)):
                 instructions.append((x, y))
             else:
                 raise ValueError("Incorrect input - not a valid tile.")
 
-            #parse moved amount
+            # parse moved amount
             if int(turn_input[3]) is int:
                 instructions.append(int(turn_input[3]))
             elif len(turn_input) < 4:
@@ -367,6 +391,7 @@ class Game:
                 raise ValueError("Incorrect input - improper amount.")
 
         return instructions
+
 
 def start_menu() -> None:
     size = int(input("Choose board size (4 - 8): "))
@@ -377,11 +402,20 @@ def start_menu() -> None:
         raise ValueError("Komi should be noted in multiples of 0.5")
     cur_game = Game(size, komi)
     cur_game.running_game()
-    #manual inputs
+
+    # manual inputs
     """cur_game.board.add_pieces((0,0), [Piece(PieceType.Road, Color.White)])
     print(cur_game.board)"""
 
-    #game end
+    # game end
+
+
+def endscreen() -> None:
+    pass
+
+
+def pregame_inputs() -> None:
+    pass
 
 
 if __name__ == "__main__":
@@ -391,6 +425,5 @@ if __name__ == "__main__":
         Placing a piece: ["P" x,y ("R" for Road, "W" for Wall, "C" for Capstone)]
         Moving a piece: ["M" (org x),(org y) (new x),(new y) (amount, blank for 1)]
         Enjoy the game.\n
-        """
-    )
+        """)
     start_menu()
