@@ -282,7 +282,7 @@ class Game:
                     return color
         return None
 
-    def check_connection(self, color: Color) -> bool:  # noqa: PLR0912
+    def check_connection(self, color: Color) -> bool:
         base_column = list(self.board.get_column(0))
         base_row = list(self.board.get_row(0))
         for tile in base_column + base_row:
