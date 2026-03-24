@@ -113,7 +113,6 @@ class Tile:
     def add_pieces(self, pieces: Iterable[Piece]) -> None:
         self.pieces.extend(pieces)
 
-
 class Board:
     size: int
     board: list[list[Tile]]
@@ -177,6 +176,13 @@ class Board:
             x, y = ptr
             return self.board[y][x]
         return None
+
+    def get_tile_ptr(self, tile: Tile) -> TilePointer:
+        for y in range(self.size):
+            for x  in range(self.size):
+                print(x, y)
+                if tile is self.get_tile((x,y)):
+                    return (x,y)
 
     def add_pieces(self, ptr: TilePointer, pieces: Iterable[Piece]) -> None:
         self.get_tile(ptr).add_pieces(pieces)
@@ -289,17 +295,16 @@ class Game:
             if tile.owner() != color:
                 continue
 
-            visited = set()
+            visited = []
             stack = [tile]
             while stack:
                 current_tile = stack.pop()
-
                 if current_tile in visited:
                     continue
 
-                visited.add(current_tile)
-
-                for x, y in self.board.neighbors(current_tile):
+                visited.append(current_tile)
+                cur_tile_ptr = self.board.get_tile_ptr(current_tile)
+                for x, y in self.board.neighbors(current_tile_ptr):
                     new_tile = self.board.get_tile(x, y)
                     stack.append(new_tile)
 
@@ -401,6 +406,11 @@ def start_menu() -> None:
     if komi % 0.5 != 0:
         raise ValueError("Komi should be noted in multiples of 0.5")
     cur_game = Game(size, komi)
+    #pregame manual inputs
+    cur_game.board.add_pieces((0,0), [Piece(PieceType.Road, Color.White)])
+    cur_game.board.add_pieces((1,0), [Piece(PieceType.Road, Color.White)])
+    cur_game.board.add_pieces((2,0), [Piece(PieceType.Road, Color.White)])
+    print(cur_game.board)
     cur_game.running_game()
 
     # manual inputs
