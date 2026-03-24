@@ -165,8 +165,46 @@ class Board:
         for y in range(self.size):
             yield self.board[y][x]
 
-    def move(self, src: TilePointer, dst: TilePointer, amount: int) -> None:
-        pass
+    def place(self, ptr: TilePointer, piece: Piece) -> None:
+        if self.get_tile(ptr).is_empty():
+            self.add_pieces(ptr, piece)
+
+    def move(
+        self, src: TilePointer, dst: TilePointer, amount: int, color: Color
+    ) -> None:
+        if self.get_tile(src).is_empty():
+            raise ValueError("Move src is empty")
+
+        if amount not in range(len(self.get_tile(src).pieces) + 1):
+            raise ValueError("Not enough pieces in src.")
+
+        move_options = self.neighbors(src)
+        if dst not in move_options:
+            raise ValueError("Dst not a neighbor of src.")
+
+        if self.get_tile(src) is None or self.get_tile(dst) is None:
+            raise ValueError("Src tile or dst tile not a valid tile.")
+
+        colors = [Color.White, Color.Black]
+        colors.remove(color)
+        if self.get_tile(src).owner() == colors:
+            raise ValueError("Src tile is not owned by you.")
+        tower = []
+        for _ in range(amount):
+            tower.append(self.get_tile(src).pieces.pop())
+        (x_og, y_og), (x_new, y_new) = src, dst
+        x_shift = x_new - x_og
+        y_shift = y_new - y_og
+        new_tile_ptr = (x_og + x_shift, y_og + y_shift)
+        i = 1
+        current_piece = tower.pop()
+        self.get_tile(new_tile_ptr).pieces.append(current_piece)
+        while tower:
+            while input("Place another piece? Non-empty to move") == "" and tower:
+                current_piece = tower.pop()
+                self.get_tile(new_tile_ptr).pieces.append(current_piece)
+            i = i + 1
+            new_tile_ptr = (x_og + x_shift * i, y_og + y_shift * i)
 
     def in_board(self, ptr: TilePointer) -> bool:
         x, y = ptr
@@ -183,7 +221,7 @@ class Board:
             for x in range(self.size):
                 if tile is self.get_tile((x, y)):
                     return (x, y)
-        raise ValueError("Tile not in board limits.")
+        raise ValueError("Tile not in board.")
 
     def add_pieces(self, ptr: TilePointer, pieces: Iterable[Piece]) -> None:
         self.get_tile(ptr).add_pieces(pieces)
@@ -230,12 +268,14 @@ class Game:
         if instructions[0] == "place":
             ptr = instructions[1]
             piece = Piece(instructions[2], turn_color)
-            self.board.add_pieces(ptr, piece)
+            self.board.place(ptr, piece)
         elif instructions[0] == "move":
             src = instructions[1]
             dst = instructions[2]
             amount = instructions[3]
-            self.board.move(src, dst, amount)
+            self.board.move(src, dst, amount, turn_color)
+        else:
+            raise SyntaxError("Invalid turn input")
 
         print(self.board)
 
@@ -343,11 +383,10 @@ class Game:
     def parse_move_input(self, turn_input: list) -> list:  # noqa: PLR0912
         # parse action type
         instructions = []
-        if turn_input[0] == "P" or "M":
-            if turn_input[0] == "P":
-                instructions.append("place")
-            if turn_input[0] == "M":
-                instructions.append("move")
+        if turn_input[0] == "P":
+            instructions.append("place")
+        elif turn_input[0] == "M":
+            instructions.append("move")
         else:
             raise ValueError("Incorrect input - action type.")
         # parse placing
@@ -375,7 +414,7 @@ class Game:
             coordinates = str(turn_input[1]).split(",")
             x = int(coordinates[0]) - 1
             y = self.board.size - int(coordinates[1])
-            if self.board.get_tile((x, y)):
+            if self.board.get_tile((x, y)) is not None:
                 instructions.append((x, y))
             else:
                 raise ValueError("Incorrect input - not a valid tile.")
@@ -384,16 +423,16 @@ class Game:
             coordinates = str(turn_input[2]).split(",")
             x = int(coordinates[0]) - 1
             y = self.board.size - int(coordinates[1])
-            if self.board.get_tile((x, y)):
+            if self.board.get_tile((x, y)) is not None:
                 instructions.append((x, y))
             else:
                 raise ValueError("Incorrect input - not a valid tile.")
 
             # parse moved amount
-            if int(turn_input[3]) is int:
-                instructions.append(int(turn_input[3]))
-            elif len(turn_input) < 4:
+            if len(turn_input) < 4:
                 instructions.append(1)
+            elif int(turn_input[3]) in range(self.board.size):
+                instructions.append(int(turn_input[3]))
             else:
                 raise ValueError("Incorrect input - improper amount.")
 
@@ -409,6 +448,7 @@ def start_menu() -> None:
         raise ValueError("Komi should be noted in multiples of 0.5")
     cur_game = Game(size, komi)
     # pregame manual inputs
+    cur_game.board.add_pieces((0, 0), [Piece(PieceType.Road, Color.Black)])
     cur_game.board.add_pieces((0, 0), [Piece(PieceType.Road, Color.Black)])
     cur_game.board.add_pieces((1, 0), [Piece(PieceType.Road, Color.Black)])
     cur_game.board.add_pieces((2, 0), [Piece(PieceType.Road, Color.Black)])
