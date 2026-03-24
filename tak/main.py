@@ -113,6 +113,7 @@ class Tile:
     def add_pieces(self, pieces: Iterable[Piece]) -> None:
         self.pieces.extend(pieces)
 
+
 class Board:
     size: int
     board: list[list[Tile]]
@@ -157,11 +158,11 @@ class Board:
             if tile:
                 yield tile
 
-    def get_row(self, x: int) -> Iterator[Tile]:
-        yield from self.board[x]
+    def get_row(self, y: int) -> Iterator[Tile]:
+        yield from self.board[y]
 
-    def get_column(self, y: int) -> Iterator[Tile]:
-        for x in range(self.size):
+    def get_column(self, x: int) -> Iterator[Tile]:
+        for y in range(self.size):
             yield self.board[y][x]
 
     def move(self, src: TilePointer, dst: TilePointer, amount: int) -> None:
@@ -179,10 +180,10 @@ class Board:
 
     def get_tile_ptr(self, tile: Tile) -> TilePointer:
         for y in range(self.size):
-            for x  in range(self.size):
-                print(x, y)
-                if tile is self.get_tile((x,y)):
-                    return (x,y)
+            for x in range(self.size):
+                if tile is self.get_tile((x, y)):
+                    return (x, y)
+        raise ValueError("Tile not in board limits.")
 
     def add_pieces(self, ptr: TilePointer, pieces: Iterable[Piece]) -> None:
         self.get_tile(ptr).add_pieces(pieces)
@@ -279,9 +280,9 @@ class Game:
                         this_column = True
                 if not this_column:
                     conn_hor = False
-                    break
                 if not this_row:
                     conn_ver = False
+                if not conn_ver and not conn_hor:
                     break
             if conn_ver or conn_hor:  # noqa: SIM102
                 if self.check_connection(color):
@@ -296,21 +297,22 @@ class Game:
                 continue
 
             visited = []
-            stack = [tile]
+            stack = [self.board.get_tile_ptr(tile)]
             while stack:
-                current_tile = stack.pop()
-                if current_tile in visited:
-                    continue
-
-                visited.append(current_tile)
-                cur_tile_ptr = self.board.get_tile_ptr(current_tile)
-                for x, y in self.board.neighbors(current_tile_ptr):
-                    new_tile = self.board.get_tile(x, y)
-                    stack.append(new_tile)
+                current_tile_ptr = stack.pop()
+                if current_tile_ptr not in visited:
+                    visited.append(current_tile_ptr)
+                for new_tile_ptr in self.board.neighbors(current_tile_ptr):
+                    if (
+                        self.board.get_tile(new_tile_ptr).owner() == color
+                        and new_tile_ptr not in visited
+                        and new_tile_ptr not in stack
+                    ):
+                        stack.append(new_tile_ptr)
 
             x_0, x_max, y_0, y_max = (False,) * 4
             for link in visited:
-                x, y = self.board.get_tile(link)
+                x, y = link
                 if x == 0:
                     x_0 = True
                 if x == self.board.size - 1:
@@ -332,7 +334,7 @@ class Game:
     def running_game(self) -> None:
         while self.get_winner() is None:
             self.turn()
-        if self.get_winner() is Color:
+        if self.get_winner() == "white" or self.get_winner() == "black":
             print(f"The {self.get_winner()} player is the winner.")
         if self.get_winner() == "tie":
             print("The game is a tie")
@@ -406,10 +408,10 @@ def start_menu() -> None:
     if komi % 0.5 != 0:
         raise ValueError("Komi should be noted in multiples of 0.5")
     cur_game = Game(size, komi)
-    #pregame manual inputs
-    cur_game.board.add_pieces((0,0), [Piece(PieceType.Road, Color.White)])
-    cur_game.board.add_pieces((1,0), [Piece(PieceType.Road, Color.White)])
-    cur_game.board.add_pieces((2,0), [Piece(PieceType.Road, Color.White)])
+    # pregame manual inputs
+    cur_game.board.add_pieces((0, 0), [Piece(PieceType.Road, Color.Black)])
+    cur_game.board.add_pieces((1, 0), [Piece(PieceType.Road, Color.Black)])
+    cur_game.board.add_pieces((2, 0), [Piece(PieceType.Road, Color.Black)])
     print(cur_game.board)
     cur_game.running_game()
 
