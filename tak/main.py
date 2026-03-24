@@ -189,6 +189,7 @@ class Board:
         colors.remove(color)
         if self.get_tile(src).owner() == colors:
             raise ValueError("Src tile is not owned by you.")
+
         tower = []
         for _ in range(amount):
             tower.append(self.get_tile(src).pieces.pop())
@@ -200,11 +201,15 @@ class Board:
         current_piece = tower.pop()
         self.get_tile(new_tile_ptr).pieces.append(current_piece)
         while tower:
-            while input("Place another piece? Non-empty to move") == "" and tower:
-                current_piece = tower.pop()
-                self.get_tile(new_tile_ptr).pieces.append(current_piece)
-            i = i + 1
-            new_tile_ptr = (x_og + x_shift * i, y_og + y_shift * i)
+            if (
+                self.get_tile((x_og + x_shift * (i + 1), y_og + y_shift * (i + 1)))
+                is not None
+                and input("Place another piece? Non-empty to move:") != ""
+            ):
+                i = i + 1
+                new_tile_ptr = (x_og + x_shift * i, y_og + y_shift * i)
+            current_piece = tower.pop()
+            self.get_tile(new_tile_ptr).pieces.append(current_piece)
 
     def in_board(self, ptr: TilePointer) -> bool:
         x, y = ptr
@@ -448,6 +453,8 @@ def start_menu() -> None:
         raise ValueError("Komi should be noted in multiples of 0.5")
     cur_game = Game(size, komi)
     # pregame manual inputs
+    cur_game.board.add_pieces((0, 0), [Piece(PieceType.Road, Color.Black)])
+    cur_game.board.add_pieces((0, 0), [Piece(PieceType.Road, Color.Black)])
     cur_game.board.add_pieces((0, 0), [Piece(PieceType.Road, Color.Black)])
     cur_game.board.add_pieces((0, 0), [Piece(PieceType.Road, Color.Black)])
     cur_game.board.add_pieces((1, 0), [Piece(PieceType.Road, Color.Black)])
