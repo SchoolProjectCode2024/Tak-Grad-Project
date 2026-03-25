@@ -572,8 +572,8 @@ if __name__ == "__main__":
     print("""
         Welcome to Tak, an abstract tactical board game.
         When prompted, enter your move in the format of:
-        Placing a piece: ["P" x,y ("R" for Road, "W" for Wall, "C" for Capstone)]
-        Moving a piece: ["M" (org x),(org y) (new x),(new y) (amount, blank for 1)]
+        Placing a piece: ["p" xy ("R" for Road, "W" for Wall, "C" for Capstone)]
+        Moving a piece: ["m" (org xy) (new xy) (amount, blank is 1)]
         Enjoy the game.\n
         """)
     start_menu()
