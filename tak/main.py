@@ -26,7 +26,7 @@ class Piece:
     color: Color
 
     def __str__(self):
-        return f"{self.type.char()}{self.color.char()}"
+        return f"{self.type.char().lower()}{self.color.char().upper()}"
 
     def __iter__(self):
         yield self
@@ -42,7 +42,7 @@ class Player:
         self.piece_counter = self.add_starting_pieces(board_size, PieceType.Road)
         self.capstone_counter = self.add_starting_pieces(board_size, PieceType.Capstone)
 
-    def add_starting_pieces(self, board_size: int, type: PieceType) -> int:  # noqa: A002, PLR0911, PLR0912
+    def add_starting_pieces(self, board_size: int, piece_type: PieceType) -> int:
         values = {
             (4, PieceType.Road): 15,
             (4, PieceType.Capstone): 0,
@@ -55,8 +55,7 @@ class Player:
             (8, PieceType.Road): 50,
             (8, PieceType.Capstone): 2,
         }
-        return values[board_size, type]
-        raise ValueError("Invalid board size - cant add pieces.")
+        return values[board_size, piece_type]
 
     def has_pieces(self) -> bool:
         return self.piece_counter + self.capstone_counter != 0
@@ -129,8 +128,7 @@ class Board:
         max_len = 0
         for tile in self.non_empty_tiles():
             cur_len = len(tile.pieces)
-            if cur_len > max_len:
-                max_len = cur_len
+            max_len = max(cur_len, max_len)
         board_visual = []
         index_row = [" "]
         for y in range(self.size):
@@ -145,10 +143,9 @@ class Board:
             index_row.append(idx.center(max_len * 4))
 
         board_visual.append("  ".join(index_row))
-        if max_len < 4:
+        if max_len < 3:
             return "\n".join(board_visual)
-        else:
-            return "\n\n".join(board_visual)
+        return "\n\n".join(board_visual)
 
     def create_board(self, size: int) -> list:
         return [[Tile([]) for _ in range(size)] for _ in range(size)]
@@ -169,15 +166,13 @@ class Board:
         for y in range(self.size):
             yield self.board[y][x]
 
-    def place(self, ptr: TilePointer, piece: Piece, color: Color) -> None:
-        if self.check_placing_legality(ptr, piece, color):
+    def place(self, ptr: TilePointer, piece: Piece) -> None:
+        if self.check_placing_legality(ptr):
             self.add_pieces(ptr, piece)
         else:
             raise ValueError("Ptr doesnt point to an empty tile.")
 
-    def check_placing_legality(
-        self, ptr: TilePointer, piece: Piece, color: Color
-    ) -> bool:
+    def check_placing_legality(self, ptr: TilePointer) -> bool:
         if not self.get_tile(ptr).is_empty():
             raise ValueError("Tile not empty.")
         return True
@@ -190,11 +185,14 @@ class Board:
         if amount not in range(len(self.get_tile(src).pieces) + 1):
             raise ValueError("Not enough pieces in src.")
 
-        for _ in range(amount):
-            tower.append(self.get_tile(src).pieces.pop())
+        for i in range(amount):
+            tower.append(self.get_tile(src).pieces[-i - 1])
 
-        if not self.check_move_legality(src, dst, amount, color, tower):
+        if not self.check_move_legality(src, dst, color, tower):
             raise ValueError("Move not legal.")
+
+        for _ in range(amount):
+            self.get_tile(src).pieces.pop()
 
         (x_og, y_og), (x_new, y_new) = src, dst
         x_shift = x_new - x_og
@@ -211,6 +209,13 @@ class Board:
                 pot_tile_top_type = pot_tile.top_piece().type
             else:
                 pot_tile_top_type = None
+
+            print(self)
+            tower_visual = []
+            for tile in tower:
+                tower_visual.append(str(tile))
+            print(tower_visual)
+
             if (
                 pot_tile is not None
                 and pot_tile_top_type != PieceType.Capstone
@@ -223,45 +228,41 @@ class Board:
                 i = i + 1
                 new_tile_ptr = (x_og + x_shift * i, y_og + y_shift * i)
             current_piece = tower.pop()
-            if (
-                current_piece.type == PieceType.Capstone
-                and not self.get_tile(new_tile_ptr).is_empty()
-                and self.get_tile(new_tile_ptr).top_piece().type == PieceType.Wall
-            ):
-                crush(new_tile_ptr)
             self.get_tile(new_tile_ptr).pieces.append(current_piece)
+        if (
+            len(self.get_tile(new_tile_ptr).pieces) > 1
+            and self.get_tile(new_tile_ptr).pieces[-1].type == PieceType.Capstone
+            and self.get_tile(new_tile_ptr).pieces[-2].type == PieceType.Wall
+        ):
+            self.crush(new_tile_ptr)
 
     def check_move_legality(
-        self, src: TilePointer, dst: TilePointer, amount: int, color: Color, tower: list
+        self, src: TilePointer, dst: TilePointer, color: Color, tower: list
     ) -> bool:
         if self.get_tile(src).is_empty():
             raise ValueError("Move src is empty")
-            return False
 
-        move_options = self.neighbors(src)
+        neighbors = self.neighbors(src)
+        move_options = list(neighbors)
         if dst not in move_options:
             raise ValueError("Dst not a neighbor of src.")
-            return False
 
         if self.get_tile(src) is None or self.get_tile(dst) is None:
             raise ValueError("Src tile or dst tile not a valid tile.")
-            return False
 
         dst_tile = self.get_tile(dst)
         if not (
             dst_tile.is_empty()
             or dst_tile.top_piece().type == PieceType.Road
             or (
-                dst_tile.top_piece().type != PieceType.Wall
+                dst_tile.top_piece().type == PieceType.Wall
                 and tower[-1].type == PieceType.Capstone
             )
         ):
             raise ValueError("Dst tile not accesible")
-            return False
 
         if self.get_tile(src).top_piece().color != color:
             raise ValueError("Src tile is not owned by you.")
-            return False
         return True
 
     def in_board(self, ptr: TilePointer) -> bool:
@@ -291,8 +292,11 @@ class Board:
 
     def crush(self, ptr: TilePointer) -> None:
         tile = self.get_tile(ptr)
-        if tile.top_piece().type == PieceType.Wall:
-            tile.top_piece().type = PieceType.Road
+        if (
+            tile.pieces[-2].type == PieceType.Wall
+            and tile.pieces[-1].type == PieceType.Capstone
+        ):
+            tile.pieces[-2].type = PieceType.Road
 
     def is_legal_move(self) -> bool:
         pass
@@ -326,23 +330,28 @@ class Game:
     def turn(self) -> None:
         self.turn_count = self.turn_count + 1
         turn_color = self.turn_color()
+        if self.turn_count > 2:
+            print(f"{turn_color} player's turn.")
+        else:
+            colors = [Color.White, Color.Black]
+            colors.remove(turn_color)
+            color = colors[0]
+            print(f"{color} player's turn.")
         turn_input = input("Input action:").split()
         instructions = self.parse_move_input(turn_input)
         if instructions[0] == "place":
             ptr = instructions[1]
             piece = Piece(instructions[2], turn_color)
-
-            place_type = piece.type
             for player in (self.player_white, self.player_black):
                 if player.color == turn_color:
-                    placing_player = player
+                    cur_player = player
 
-            if piece.type == PieceType.Capstone and player.capstone_counter == 0:
+            if piece.type == PieceType.Capstone and cur_player.capstone_counter == 0:
                 raise ValueError("Playet doesnt have capstones to place.")
-            if piece.type != PieceType.Capstone and player.piece_counter == 0:
+            if piece.type != PieceType.Capstone and cur_player.piece_counter == 0:
                 raise ValueError("Player doesnt have piece to place.")
 
-            self.board.place(ptr, piece, turn_color)
+            self.board.place(ptr, piece)
         elif instructions[0] == "move":
             src = instructions[1]
             dst = instructions[2]
@@ -452,51 +461,52 @@ class Game:
             print(f"The {self.get_winner()} player is the winner.")
         if self.get_winner() == "tie":
             print("The game is a tie")
-        print("Finish the rest.")
+        if input("Press Enter to play again.") == "":
+            start_menu()
 
     def parse_move_input(self, turn_input: list) -> list:  # noqa: PLR0912
         # parse action type
         x_coord = {
-            ("a"): 1,
-            ("b"): 2,
-            ("c"): 3,
-            ("d"): 4,
-            ("e"): 5,
-            ("f"): 6,
-            ("g"): 7,
-            ("h"): 8,
+            ("a"): 0,
+            ("b"): 1,
+            ("c"): 2,
+            ("d"): 3,
+            ("e"): 4,
+            ("f"): 5,
+            ("g"): 6,
+            ("h"): 7,
         }
         instructions = []
-        if turn_input[0] == "P":
+        if str(turn_input[0]).upper() == "P":
             instructions.append("place")
-        elif turn_input[0] == "M":
+        elif str(turn_input[0]).upper() == "M":
             instructions.append("move")
         else:
             raise ValueError("Incorrect input - action type.")
         # parse placing
-        if turn_input[0] == "P":
+        if instructions[0] == "place":
             # parse placement
             coordinates = list(turn_input[1])
-            x = x_coord[coordinates[0]] - 1
+            x = x_coord[coordinates[0]]
             y = self.board.size - int(coordinates[1])
             if isinstance(self.board.get_tile((x, y)), Tile):
                 instructions.append((x, y))
             else:
                 raise ValueError("Incorrect input - not a valid tile.")
             # parse piece type
-            if turn_input[2] == "R":
+            if str(turn_input[2]).upper() == "R":
                 instructions.append(PieceType.Road)
-            elif turn_input[2] == "W":
+            elif str(turn_input[2]).upper() == "W":
                 instructions.append(PieceType.Wall)
-            elif turn_input[2] == "C":
+            elif str(turn_input[2]).upper() == "C":
                 instructions.append(PieceType.Capstone)
             else:
-                raise ValueError("Incorrect input - not a valid piece.")
+                raise ValueError("Incorrect input - not a valid piece type.")
         # parse moving
-        if turn_input[0] == "M":
+        if instructions[0] == "move":
             # parse org placement
             coordinates = list(turn_input[1])
-            x = x_coord[coordinates[0]] - 1
+            x = x_coord[coordinates[0]]
             y = self.board.size - int(coordinates[1])
             if self.board.get_tile((x, y)) is not None:
                 instructions.append((x, y))
@@ -504,8 +514,8 @@ class Game:
                 raise ValueError("Incorrect input - not a valid tile.")
 
             # parse new placement
-            coordinates = list(turn_input[1])
-            x = x_coord[coordinates[0]] - 1
+            coordinates = list(turn_input[2])
+            x = x_coord[coordinates[0]]
             y = self.board.size - int(coordinates[1])
             if self.board.get_tile((x, y)) is not None:
                 instructions.append((x, y))
@@ -513,7 +523,7 @@ class Game:
                 raise ValueError("Incorrect input - not a valid tile.")
 
             # parse moved amount
-            if len(turn_input) < 4:
+            if len(turn_input) < 4 and instructions[0] == "move":
                 instructions.append(1)
             elif int(turn_input[3]) in range(self.board.size):
                 instructions.append(int(turn_input[3]))
@@ -532,13 +542,14 @@ def start_menu() -> None:
         raise ValueError("Komi should be noted in multiples of 0.5")
     cur_game = Game(size, komi)
     # pregame manual inputs
+    """ cur_game.board.add_pieces((0, 0), [Piece(PieceType.Road, Color.Black)])
     cur_game.board.add_pieces((0, 0), [Piece(PieceType.Road, Color.Black)])
     cur_game.board.add_pieces((0, 0), [Piece(PieceType.Road, Color.Black)])
     cur_game.board.add_pieces((0, 0), [Piece(PieceType.Road, Color.Black)])
-    cur_game.board.add_pieces((0, 0), [Piece(PieceType.Road, Color.Black)])
+    cur_game.board.add_pieces((0, 0), [Piece(PieceType.Capstone, Color.Black)])
     cur_game.board.add_pieces((1, 0), [Piece(PieceType.Road, Color.Black)])
     cur_game.board.add_pieces((2, 0), [Piece(PieceType.Road, Color.Black)])
-    cur_game.board.add_pieces((0, 2), [Piece(PieceType.Wall, Color.Black)])
+    cur_game.board.add_pieces((0, 3), [Piece(PieceType.Wall, Color.Black)]) """
     print(cur_game.board)
     cur_game.running_game()
 
