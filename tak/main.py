@@ -55,7 +55,7 @@ class Player:
             (8, PieceType.Road): 50,
             (8, PieceType.Capstone): 2,
         }
-        return values[board_size,type]
+        return values[board_size, type]
         raise ValueError("Invalid board size - cant add pieces.")
 
     def has_pieces(self) -> bool:
@@ -125,7 +125,6 @@ class Board:
             (6): "f",
             (7): "g",
             (8): "h",
-            
         }
         max_len = 0
         for tile in self.non_empty_tiles():
@@ -176,7 +175,9 @@ class Board:
         else:
             raise ValueError("Ptr doesnt point to an empty tile.")
 
-    def check_placing_legality(self, ptr: TilePointer, piece: Piece, color: Color) -> bool:
+    def check_placing_legality(
+        self, ptr: TilePointer, piece: Piece, color: Color
+    ) -> bool:
         if not self.get_tile(ptr).is_empty():
             raise ValueError("Tile not empty.")
         return True
@@ -191,7 +192,7 @@ class Board:
 
         for _ in range(amount):
             tower.append(self.get_tile(src).pieces.pop())
-            
+
         if not self.check_move_legality(src, dst, amount, color, tower):
             raise ValueError("Move not legal.")
 
@@ -203,7 +204,9 @@ class Board:
         current_piece = tower.pop()
         self.get_tile(new_tile_ptr).pieces.append(current_piece)
         while tower:
-            pot_tile = self.get_tile((x_og + x_shift * (i + 1), y_og + y_shift * (i + 1)))
+            pot_tile = self.get_tile(
+                (x_og + x_shift * (i + 1), y_og + y_shift * (i + 1))
+            )
             if not pot_tile.is_empty():
                 pot_tile_top_type = pot_tile.top_piece().type
             else:
@@ -211,22 +214,26 @@ class Board:
             if (
                 pot_tile is not None
                 and pot_tile_top_type != PieceType.Capstone
-                and (pot_tile_top_type != PieceType.Wall
-                or tower[-1].type == PieceType.Capstone)
+                and (
+                    pot_tile_top_type != PieceType.Wall
+                    or tower[-1].type == PieceType.Capstone
+                )
                 and input("Place another piece? Non-empty to move:") != ""
             ):
                 i = i + 1
                 new_tile_ptr = (x_og + x_shift * i, y_og + y_shift * i)
             current_piece = tower.pop()
             if (
-            current_piece.type == PieceType.Capstone
-            and not self.get_tile(new_tile_ptr).is_empty()
-            and self.get_tile(new_tile_ptr).top_piece().type == PieceType.Wall
+                current_piece.type == PieceType.Capstone
+                and not self.get_tile(new_tile_ptr).is_empty()
+                and self.get_tile(new_tile_ptr).top_piece().type == PieceType.Wall
             ):
                 crush(new_tile_ptr)
             self.get_tile(new_tile_ptr).pieces.append(current_piece)
 
-    def check_move_legality(self, src: TilePointer, dst: TilePointer, amount: int, color: Color, tower: list) -> bool:
+    def check_move_legality(
+        self, src: TilePointer, dst: TilePointer, amount: int, color: Color, tower: list
+    ) -> bool:
         if self.get_tile(src).is_empty():
             raise ValueError("Move src is empty")
             return False
@@ -242,11 +249,13 @@ class Board:
 
         dst_tile = self.get_tile(dst)
         if not (
-                dst_tile.is_empty()
-                or dst_tile.top_piece().type == PieceType.Road
-                or (dst_tile.top_piece().type != PieceType.Wall
-                and tower[-1].type == PieceType.Capstone)
-            ):  
+            dst_tile.is_empty()
+            or dst_tile.top_piece().type == PieceType.Road
+            or (
+                dst_tile.top_piece().type != PieceType.Wall
+                and tower[-1].type == PieceType.Capstone
+            )
+        ):
             raise ValueError("Dst tile not accesible")
             return False
 
@@ -327,7 +336,7 @@ class Game:
             for player in (self.player_white, self.player_black):
                 if player.color == turn_color:
                     placing_player = player
-            
+
             if piece.type == PieceType.Capstone and player.capstone_counter == 0:
                 raise ValueError("Playet doesnt have capstones to place.")
             if piece.type != PieceType.Capstone and player.piece_counter == 0:
