@@ -165,30 +165,32 @@ class Board:
         for y in range(self.size):
             yield self.board[y][x]
 
-    def place(self, ptr: TilePointer, piece: Piece) -> None:
-        if self.get_tile(ptr).is_empty():
+    def place(self, ptr: TilePointer, piece: Piece, color: Color) -> None:
+        if check_placing_legality(self, ptr, piece, color):
             self.add_pieces(ptr, piece)
+
+    def check_placing_legality(self, ptr: TilePointer, piece: Piece, color: Color) -> bool:
+        if not self.get_tile(ptr).is_empty():
+            raise ValueError("Tile not empty.")
+
+        place_type = piece.type
+        for player in (cur_game.player_white and cur_game.player_black):
+            if player.color == color:
+                placing_player = player
+        
+        if place_type == PieceType.Capstone and player.capstone_counter == 0:
+            raise ValueError("Playet doesnt have capstones to place.")
+            False
+        if place_type != PieceType.Capstone and player.piece_counter == 0:
+            raise ValueError("Player doesnt have piece to place.")
+            return False
+        return True
 
     def move(
         self, src: TilePointer, dst: TilePointer, amount: int, color: Color
     ) -> None:
-        if self.get_tile(src).is_empty():
-            raise ValueError("Move src is empty")
-
-        if amount not in range(len(self.get_tile(src).pieces) + 1):
-            raise ValueError("Not enough pieces in src.")
-
-        move_options = self.neighbors(src)
-        if dst not in move_options:
-            raise ValueError("Dst not a neighbor of src.")
-
-        if self.get_tile(src) is None or self.get_tile(dst) is None:
-            raise ValueError("Src tile or dst tile not a valid tile.")
-
-        colors = [Color.White, Color.Black]
-        colors.remove(color)
-        if self.get_tile(src).owner() == colors:
-            raise ValueError("Src tile is not owned by you.")
+        if not self.check_move_legality(src, dst, amount, color):
+            raise ValueError("Move not legal.")
 
         tower = []
         for _ in range(amount):
@@ -201,15 +203,56 @@ class Board:
         current_piece = tower.pop()
         self.get_tile(new_tile_ptr).pieces.append(current_piece)
         while tower:
+            pot_tile = self.get_tile((x_og + x_shift * (i + 1), y_og + y_shift * (i + 1)))
+            pot_tile_top_type = pot_tile.top_piece().type
             if (
-                self.get_tile((x_og + x_shift * (i + 1), y_og + y_shift * (i + 1)))
-                is not None
+                pot_tile is not None
+                and pot_tile_top_type is not PieceType.Capstone
+                and (pot_tile_top_type is not PieceType.Wall
+                or tower[-1].type == PieceType.Capstone)
                 and input("Place another piece? Non-empty to move:") != ""
             ):
                 i = i + 1
                 new_tile_ptr = (x_og + x_shift * i, y_og + y_shift * i)
             current_piece = tower.pop()
+            if (
+            current_piece.type == PieceType.Capstone
+            and self.get_tile(new_tile_ptr).top_piece().type.PieceType.Wall
+            ):
+                crush(new_tile_ptr)
             self.get_tile(new_tile_ptr).pieces.append(current_piece)
+
+    def check_move_legality(self, src: TilePointer, dst: TilePointer, amount: int, color: Color) -> bool:
+        if self.get_tile(src).is_empty():
+            raise ValueError("Move src is empty")
+            return False
+
+        if amount not in range(len(self.get_tile(src).pieces) + 1):
+            raise ValueError("Not enough pieces in src.")
+            return False
+
+        move_options = self.neighbors(src)
+        if dst not in move_options:
+            raise ValueError("Dst not a neighbor of src.")
+            return False
+
+        if self.get_tile(src) is None or self.get_tile(dst) is None:
+            raise ValueError("Src tile or dst tile not a valid tile.")
+            return False
+
+        dst_tile = self.get_tile(dst)
+        if not (
+                dst_tile.top_piece().type != PieceType.Capstone
+                and (dst_tile.top_piece().type != PieceType.Wall
+                or tower[-1].type == PieceType.Capstone)
+            ):
+            raise ValueError("Dst tile not accesible")
+            return False
+
+        if self.get_tile(src).top_piece().type != color:
+            raise ValueError("Src tile is not owned by you.")
+            return False
+        return True
 
     def in_board(self, ptr: TilePointer) -> bool:
         x, y = ptr
@@ -235,6 +278,11 @@ class Board:
         if self.get_tile(ptr):
             tile = self.get_tile(ptr)
             tile.clear()
+
+    def crush(self, ptr: TilePointer) -> None:
+        tile = self.get_tile(ptr)
+        if tile.top_piece().type.Wall:
+            tile.top_piece().type = PieceType.Road
 
     def is_legal_move(self) -> bool:
         pass
@@ -273,7 +321,7 @@ class Game:
         if instructions[0] == "place":
             ptr = instructions[1]
             piece = Piece(instructions[2], turn_color)
-            self.board.place(ptr, piece)
+            self.board.place(ptr, piece, self.turn_color())
         elif instructions[0] == "move":
             src = instructions[1]
             dst = instructions[2]
@@ -459,6 +507,7 @@ def start_menu() -> None:
     cur_game.board.add_pieces((0, 0), [Piece(PieceType.Road, Color.Black)])
     cur_game.board.add_pieces((1, 0), [Piece(PieceType.Road, Color.Black)])
     cur_game.board.add_pieces((2, 0), [Piece(PieceType.Road, Color.Black)])
+    cur_game.board.add_pieces((0, 1), [Piece(PieceType.Wall, Color.Black)])
     print(cur_game.board)
     cur_game.running_game()
 
