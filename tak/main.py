@@ -116,17 +116,40 @@ class Board:
 
     # indexed
     def __str__(self) -> str:
+        x_idx = {
+            (1): "a",
+            (2): "b",
+            (3): "c",
+            (4): "d",
+            (5): "e",
+            (6): "f",
+            (7): "g",
+            (8): "h",
+            
+        }
+        max_len = 0
+        for tile in self.non_empty_tiles():
+            cur_len = len(tile.pieces)
+            if cur_len > max_len:
+                max_len = cur_len
         board_visual = []
-        index_row = [""]
+        index_row = [" "]
         for y in range(self.size):
             row_visual = [str(self.size - y)]
             for x in range(self.size):
-                row_visual.append(f"{self.board[y][x]}")
-            board_visual.append(" ".join(row_visual))  # must be string for .join
+                tile_str = str(self.board[y][x])
+                row_visual.append(tile_str.center(max_len * 4))
+
+            board_visual.append("  ".join(row_visual))  # must be string for .join
         for i in range(self.size):
-            index_row.append(str(i + 1))
-        board_visual.append("    ".join(index_row))
-        return "\n".join(board_visual)
+            idx = x_idx[i + 1]
+            index_row.append(idx.center(max_len * 4))
+
+        board_visual.append("  ".join(index_row))
+        if max_len < 4:
+            return "\n".join(board_visual)
+        else:
+            return "\n\n".join(board_visual)
 
     def create_board(self, size: int) -> list:
         return [[Tile([]) for _ in range(size)] for _ in range(size)]
@@ -424,6 +447,16 @@ class Game:
 
     def parse_move_input(self, turn_input: list) -> list:  # noqa: PLR0912
         # parse action type
+        x_coord = {
+            ("a"): 1,
+            ("b"): 2,
+            ("c"): 3,
+            ("d"): 4,
+            ("e"): 5,
+            ("f"): 6,
+            ("g"): 7,
+            ("h"): 8,
+        }
         instructions = []
         if turn_input[0] == "P":
             instructions.append("place")
@@ -434,8 +467,8 @@ class Game:
         # parse placing
         if turn_input[0] == "P":
             # parse placement
-            coordinates = str(turn_input[1]).split(",")
-            x = int(coordinates[0]) - 1
+            coordinates = list(turn_input[1])
+            x = x_coord[coordinates[0]] - 1
             y = self.board.size - int(coordinates[1])
             if isinstance(self.board.get_tile((x, y)), Tile):
                 instructions.append((x, y))
@@ -453,8 +486,8 @@ class Game:
         # parse moving
         if turn_input[0] == "M":
             # parse org placement
-            coordinates = str(turn_input[1]).split(",")
-            x = int(coordinates[0]) - 1
+            coordinates = list(turn_input[1])
+            x = x_coord[coordinates[0]] - 1
             y = self.board.size - int(coordinates[1])
             if self.board.get_tile((x, y)) is not None:
                 instructions.append((x, y))
@@ -462,8 +495,8 @@ class Game:
                 raise ValueError("Incorrect input - not a valid tile.")
 
             # parse new placement
-            coordinates = str(turn_input[2]).split(",")
-            x = int(coordinates[0]) - 1
+            coordinates = list(turn_input[1])
+            x = x_coord[coordinates[0]] - 1
             y = self.board.size - int(coordinates[1])
             if self.board.get_tile((x, y)) is not None:
                 instructions.append((x, y))
