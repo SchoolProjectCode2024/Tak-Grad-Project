@@ -12,8 +12,8 @@ class Color(StrEnum):
 
 
 class PieceType(StrEnum):
-    Road = auto()
-    Wall = auto()
+    FlatStone = auto()
+    StandingStone = auto()
     Capstone = auto()
 
     def char(self) -> str:
@@ -39,20 +39,20 @@ class Player:
 
     def __init__(self, color: Color, board_size: int):
         self.color = color
-        self.piece_counter = self.add_starting_pieces(board_size, PieceType.Road)
+        self.piece_counter = self.add_starting_pieces(board_size, PieceType.FlatStone)
         self.capstone_counter = self.add_starting_pieces(board_size, PieceType.Capstone)
 
     def add_starting_pieces(self, board_size: int, piece_type: PieceType) -> int:
         values = {
-            (4, PieceType.Road): 15,
+            (4, PieceType.FlatStone): 15,
             (4, PieceType.Capstone): 0,
-            (5, PieceType.Road): 21,
+            (5, PieceType.FlatStone): 21,
             (5, PieceType.Capstone): 1,
-            (6, PieceType.Road): 30,
+            (6, PieceType.FlatStone): 30,
             (6, PieceType.Capstone): 1,
-            (7, PieceType.Road): 40,
+            (7, PieceType.FlatStone): 40,
             (7, PieceType.Capstone): 2,
-            (8, PieceType.Road): 50,
+            (8, PieceType.FlatStone): 50,
             (8, PieceType.Capstone): 2,
         }
         return values[board_size, piece_type]
@@ -79,7 +79,7 @@ class Tile:
         if not self.pieces:
             return None
         top_piece = self.pieces[-1]
-        if top_piece.type in (PieceType.Road, PieceType.Capstone):
+        if top_piece.type in (PieceType.FlatStone, PieceType.Capstone):
             return top_piece.color
         return None
 
@@ -102,16 +102,6 @@ class Board:
     def __init__(self, boardsize: int):
         self.size = boardsize
         self.board = self.create_board(boardsize)
-
-    # unindexed
-    """ def __str__(self) -> str:
-        board_visual = []
-        for y in range(self.size):
-            row_visual = []
-            for x in range(self.size):
-                row_visual.append(f"{self.board[y][x]}")
-            board_visual.append(" ".join(row_visual))  # must be string for .join
-        return "\n".join(board_visual) """
 
     # indexed
     def __str__(self) -> str:
@@ -140,7 +130,8 @@ class Board:
             board_visual.append("  ".join(row_visual))  # must be string for .join
         for i in range(self.size):
             idx = x_idx[i + 1]
-            index_row.append(idx.center(max_len * 4))
+            idx_width = (4 + max_len * 4) if max_len != 1 else (4)
+            index_row.append(idx.center(idx_width))
 
         board_visual.append("  ".join(index_row))
         if max_len < 3:
@@ -220,7 +211,7 @@ class Board:
                 pot_tile is not None
                 and pot_tile_top_type != PieceType.Capstone
                 and (
-                    pot_tile_top_type != PieceType.Wall
+                    pot_tile_top_type != PieceType.StandingStone
                     or tower[-1].type == PieceType.Capstone
                 )
                 and input("Place another piece? Non-empty to move:") != ""
@@ -232,7 +223,7 @@ class Board:
         if (
             len(self.get_tile(new_tile_ptr).pieces) > 1
             and self.get_tile(new_tile_ptr).pieces[-1].type == PieceType.Capstone
-            and self.get_tile(new_tile_ptr).pieces[-2].type == PieceType.Wall
+            and self.get_tile(new_tile_ptr).pieces[-2].type == PieceType.StandingStone
         ):
             self.crush(new_tile_ptr)
 
@@ -253,9 +244,9 @@ class Board:
         dst_tile = self.get_tile(dst)
         if not (
             dst_tile.is_empty()
-            or dst_tile.top_piece().type == PieceType.Road
+            or dst_tile.top_piece().type == PieceType.FlatStone
             or (
-                dst_tile.top_piece().type == PieceType.Wall
+                dst_tile.top_piece().type == PieceType.StandingStone
                 and tower[-1].type == PieceType.Capstone
             )
         ):
@@ -293,10 +284,10 @@ class Board:
     def crush(self, ptr: TilePointer) -> None:
         tile = self.get_tile(ptr)
         if (
-            tile.pieces[-2].type == PieceType.Wall
+            tile.pieces[-2].type == PieceType.StandingStone
             and tile.pieces[-1].type == PieceType.Capstone
         ):
-            tile.pieces[-2].type = PieceType.Road
+            tile.pieces[-2].type = PieceType.FlatStone
 
     def is_legal_move(self) -> bool:
         pass
@@ -330,8 +321,13 @@ class Game:
     def turn(self) -> None:
         self.turn_count = self.turn_count + 1
         turn_color = self.turn_color()
+        for player in (self.player_white, self.player_black):
+                if player.color == turn_color:
+                    cur_player = player
         if self.turn_count > 2:
             print(f"{turn_color} player's turn.")
+            print(f"{cur_player.piece_counter} pieces left.")
+            print(f"{cur_player.capstone_counter} capstones left.")
         else:
             colors = [Color.White, Color.Black]
             colors.remove(turn_color)
@@ -342,9 +338,6 @@ class Game:
         if instructions[0] == "place":
             ptr = instructions[1]
             piece = Piece(instructions[2], turn_color)
-            for player in (self.player_white, self.player_black):
-                if player.color == turn_color:
-                    cur_player = player
 
             if piece.type == PieceType.Capstone and cur_player.capstone_counter == 0:
                 raise ValueError("Playet doesnt have capstones to place.")
@@ -494,10 +487,10 @@ class Game:
             else:
                 raise ValueError("Incorrect input - not a valid tile.")
             # parse piece type
-            if str(turn_input[2]).upper() == "R":
-                instructions.append(PieceType.Road)
-            elif str(turn_input[2]).upper() == "W":
-                instructions.append(PieceType.Wall)
+            if str(turn_input[2]).upper() == "F":
+                instructions.append(PieceType.FlatStone)
+            elif str(turn_input[2]).upper() == "S":
+                instructions.append(PieceType.StandingStone)
             elif str(turn_input[2]).upper() == "C":
                 instructions.append(PieceType.Capstone)
             else:
@@ -542,19 +535,19 @@ def start_menu() -> None:
         raise ValueError("Komi should be noted in multiples of 0.5")
     cur_game = Game(size, komi)
     # pregame manual inputs
-    """ cur_game.board.add_pieces((0, 0), [Piece(PieceType.Road, Color.Black)])
-    cur_game.board.add_pieces((0, 0), [Piece(PieceType.Road, Color.Black)])
-    cur_game.board.add_pieces((0, 0), [Piece(PieceType.Road, Color.Black)])
-    cur_game.board.add_pieces((0, 0), [Piece(PieceType.Road, Color.Black)])
+    """ cur_game.board.add_pieces((0, 0), [Piece(PieceType.FlatStone, Color.Black)])
+    cur_game.board.add_pieces((0, 0), [Piece(PieceType.FlatStone, Color.Black)])
+    cur_game.board.add_pieces((0, 0), [Piece(PieceType.FlatStone, Color.Black)])
+    cur_game.board.add_pieces((0, 0), [Piece(PieceType.FlatStone, Color.Black)])
     cur_game.board.add_pieces((0, 0), [Piece(PieceType.Capstone, Color.Black)])
-    cur_game.board.add_pieces((1, 0), [Piece(PieceType.Road, Color.Black)])
-    cur_game.board.add_pieces((2, 0), [Piece(PieceType.Road, Color.Black)])
-    cur_game.board.add_pieces((0, 3), [Piece(PieceType.Wall, Color.Black)]) """
+    cur_game.board.add_pieces((1, 0), [Piece(PieceType.FlatStone, Color.Black)])
+    cur_game.board.add_pieces((2, 0), [Piece(PieceType.FlatStone, Color.Black)])
+    cur_game.board.add_pieces((0, 3), [Piece(PieceType.StandingStone, Color.Black)]) """
     print(cur_game.board)
     cur_game.running_game()
 
     # manual inputs
-    """cur_game.board.add_pieces((0,0), [Piece(PieceType.Road, Color.White)])
+    """cur_game.board.add_pieces((0,0), [Piece(PieceType.FlatStone, Color.White)])
     print(cur_game.board)"""
 
     # game end
@@ -572,7 +565,7 @@ if __name__ == "__main__":
     print("""
         Welcome to Tak, an abstract tactical board game.
         When prompted, enter your move in the format of:
-        Placing a piece: ["p" xy ("R" for Road, "W" for Wall, "C" for Capstone)]
+        Placing a piece: ["p" xy ("F" for FlatStone, "S" for StandingStone, "C" for Capstone)]
         Moving a piece: ["m" (org xy) (new xy) (amount, blank is 1)]
         Enjoy the game.\n
         """)
