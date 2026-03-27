@@ -130,7 +130,7 @@ class Board:
             board_visual.append("  ".join(row_visual))  # must be string for .join
         for i in range(self.size):
             idx = x_idx[i + 1]
-            idx_width = (4 + max_len * 4) if max_len != 1 else (4)
+            idx_width = 4 if max_len == 1 else max_len * 4
             index_row.append(idx.center(idx_width))
 
         board_visual.append("  ".join(index_row))
@@ -322,8 +322,19 @@ class Game:
         self.turn_count = self.turn_count + 1
         turn_color = self.turn_color()
         for player in (self.player_white, self.player_black):
-                if player.color == turn_color:
-                    cur_player = player
+            if player.color == turn_color:
+                cur_player = player
+        if self.turn_count > 2:
+            print(f"{turn_color} player's turn.")
+            print(f"{cur_player.piece_counter} pieces left.")
+            print(f"{cur_player.capstone_counter} capstones left.")
+        else:
+            colors = [Color.White, Color.Black]
+        self.turn_count = self.turn_count + 1
+        turn_color = self.turn_color()
+        for player in (self.player_white, self.player_black):
+            if player.color == turn_color:
+                cur_player = player
         if self.turn_count > 2:
             print(f"{turn_color} player's turn.")
             print(f"{cur_player.piece_counter} pieces left.")
@@ -333,25 +344,43 @@ class Game:
             colors.remove(turn_color)
             color = colors[0]
             print(f"{color} player's turn.")
-        turn_input = input("Input action:").split()
-        instructions = self.parse_move_input(turn_input)
-        if instructions[0] == "place":
-            ptr = instructions[1]
-            piece = Piece(instructions[2], turn_color)
+            colors.remove(turn_color)
+            color = colors[0]
+            print(f"{color} player's turn.")
+        while True:
+            while True:
+                try:
+                    turn_input = input("Input action:").split()
+                    instructions = self.parse_move_input(turn_input)
+                    break
+                except ValueError:
+                    print("Improper input, try again.")
 
-            if piece.type == PieceType.Capstone and cur_player.capstone_counter == 0:
-                raise ValueError("Playet doesnt have capstones to place.")
-            if piece.type != PieceType.Capstone and cur_player.piece_counter == 0:
-                raise ValueError("Player doesnt have piece to place.")
+            try:
+                if instructions[0] == "place":
+                    ptr = instructions[1]
+                    piece = Piece(instructions[2], turn_color)
 
-            self.board.place(ptr, piece)
-        elif instructions[0] == "move":
-            src = instructions[1]
-            dst = instructions[2]
-            amount = instructions[3]
-            self.board.move(src, dst, amount, turn_color)
-        else:
-            raise SyntaxError("Invalid turn input")
+                    if piece.type == PieceType.Capstone:
+                        if cur_player.capstone_counter == 0:
+                            raise ValueError("Playet doesnt have capstones to place.")
+                        cur_player.capstone_counter = cur_player.capstone_counter - 1
+                    else:
+                        if cur_player.piece_counter == 0:
+                            raise ValueError("Player doesnt have piece to place.")
+                        cur_player.piece_counter = cur_player.piece_counter - 1
+                    self.board.place(ptr, piece)
+
+                elif instructions[0] == "move":
+                    src = instructions[1]
+                    dst = instructions[2]
+                    amount = instructions[3]
+                    self.board.move(src, dst, amount, turn_color)
+                else:
+                    raise SyntaxError("Invalid turn input")
+                break
+            except ValueError:
+                print("Improper input, try again.")
 
         print(self.board)
 
@@ -480,7 +509,7 @@ class Game:
         if instructions[0] == "place":
             # parse placement
             coordinates = list(turn_input[1])
-            x = x_coord[coordinates[0]]
+            x = x_coord[coordinates[0].lower()]
             y = self.board.size - int(coordinates[1])
             if isinstance(self.board.get_tile((x, y)), Tile):
                 instructions.append((x, y))
