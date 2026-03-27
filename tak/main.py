@@ -318,7 +318,7 @@ class Game:
         self.player_black = Player(Color.Black, size)
         self.turn_count = 0
 
-    def turn(self) -> None:
+    def turn(self) -> None:  # noqa: PLR0912, PLR0915
         self.turn_count = self.turn_count + 1
         turn_color = self.turn_color()
         for player in (self.player_white, self.player_black):
@@ -330,20 +330,6 @@ class Game:
             print(f"{cur_player.capstone_counter} capstones left.")
         else:
             colors = [Color.White, Color.Black]
-        self.turn_count = self.turn_count + 1
-        turn_color = self.turn_color()
-        for player in (self.player_white, self.player_black):
-            if player.color == turn_color:
-                cur_player = player
-        if self.turn_count > 2:
-            print(f"{turn_color} player's turn.")
-            print(f"{cur_player.piece_counter} pieces left.")
-            print(f"{cur_player.capstone_counter} capstones left.")
-        else:
-            colors = [Color.White, Color.Black]
-            colors.remove(turn_color)
-            color = colors[0]
-            print(f"{color} player's turn.")
             colors.remove(turn_color)
             color = colors[0]
             print(f"{color} player's turn.")
@@ -354,7 +340,7 @@ class Game:
                     instructions = self.parse_move_input(turn_input)
                     break
                 except ValueError:
-                    print("Improper input, try again.")
+                    print("Improper input form, try again.")
 
             try:
                 if instructions[0] == "place":
@@ -380,7 +366,7 @@ class Game:
                     raise SyntaxError("Invalid turn input")
                 break
             except ValueError:
-                print("Improper input, try again.")
+                print("Not a valid action, try again.")
 
         print(self.board)
 
@@ -597,5 +583,5 @@ if __name__ == "__main__":
         Placing a piece: ["p" xy ("F" for FlatStone, "S" for StandingStone, "C" for Capstone)]
         Moving a piece: ["m" (org xy) (new xy) (amount, blank is 1)]
         Enjoy the game.\n
-        """)
+        """)  # noqa: E501
     start_menu()
