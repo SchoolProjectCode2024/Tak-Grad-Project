@@ -130,7 +130,7 @@ class Board:
             board_visual.append("  ".join(row_visual))  # must be string for .join
         for i in range(self.size):
             idx = x_idx[i + 1]
-            idx_width = 4 if max_len == 1 else max_len * 4
+            idx_width = 4 if max_len < 2 else max_len * 4
             index_row.append(idx.center(idx_width))
 
         board_visual.append("  ".join(index_row))
@@ -318,7 +318,7 @@ class Game:
         self.player_black = Player(Color.Black, size)
         self.turn_count = 0
 
-    def turn(self) -> None:  # noqa: PLR0912, PLR0915
+    def turn(self) -> None:  # noqa: PLR0912
         self.turn_count = self.turn_count + 1
         turn_color = self.turn_color()
         for player in (self.player_white, self.player_black):
