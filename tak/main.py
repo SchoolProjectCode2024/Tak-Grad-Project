@@ -349,11 +349,11 @@ class Game:
 
                     if piece.type == PieceType.Capstone:
                         if cur_player.capstone_counter == 0:
-                            raise ValueError("Playet doesnt have capstones to place.")
+                            raise ValueError("Player doesn't have capstones to place.")  # noqa: TRY301
                         cur_player.capstone_counter = cur_player.capstone_counter - 1
                     else:
                         if cur_player.piece_counter == 0:
-                            raise ValueError("Player doesnt have piece to place.")
+                            raise ValueError("Player doesn't have pieces to place.")  # noqa: TRY301
                         cur_player.piece_counter = cur_player.piece_counter - 1
                     self.board.place(ptr, piece)
 
@@ -560,10 +560,6 @@ def start_menu() -> None:
     cur_game.board.add_pieces((0, 3), [Piece(PieceType.StandingStone, Color.Black)]) """
     print(cur_game.board)
     cur_game.running_game()
-
-    # manual inputs
-    """cur_game.board.add_pieces((0,0), [Piece(PieceType.FlatStone, Color.White)])
-    print(cur_game.board)"""
 
     # game end
 
