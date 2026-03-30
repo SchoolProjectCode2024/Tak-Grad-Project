@@ -577,7 +577,7 @@ if __name__ == "__main__":
         Welcome to Tak, an abstract tactical board game.
         When prompted, enter your move in the format of:
         Placing a piece: ["p" xy ("F" for FlatStone, "S" for StandingStone, "C" for Capstone)]
-        Moving a piece: ["m" (org xy) (new xy) (amount, blank is 1)]
+        Moving a piece: ["m" (org xy) (new xy) (amount- blank counts 1)]
         Enjoy the game.\n
         """)  # noqa: E501
     start_menu()
