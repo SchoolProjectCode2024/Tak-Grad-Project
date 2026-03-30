@@ -549,27 +549,8 @@ def start_menu() -> None:
     if komi % 0.5 != 0:
         raise ValueError("Komi should be noted in multiples of 0.5")
     cur_game = Game(size, komi)
-    # pregame manual inputs
-    """ cur_game.board.add_pieces((0, 0), [Piece(PieceType.FlatStone, Color.Black)])
-    cur_game.board.add_pieces((0, 0), [Piece(PieceType.FlatStone, Color.Black)])
-    cur_game.board.add_pieces((0, 0), [Piece(PieceType.FlatStone, Color.Black)])
-    cur_game.board.add_pieces((0, 0), [Piece(PieceType.FlatStone, Color.Black)])
-    cur_game.board.add_pieces((0, 0), [Piece(PieceType.Capstone, Color.Black)])
-    cur_game.board.add_pieces((1, 0), [Piece(PieceType.FlatStone, Color.Black)])
-    cur_game.board.add_pieces((2, 0), [Piece(PieceType.FlatStone, Color.Black)])
-    cur_game.board.add_pieces((0, 3), [Piece(PieceType.StandingStone, Color.Black)]) """
     print(cur_game.board)
     cur_game.running_game()
-
-    # game end
-
-
-def endscreen() -> None:
-    pass
-
-
-def pregame_inputs() -> None:
-    pass
 
 
 if __name__ == "__main__":
