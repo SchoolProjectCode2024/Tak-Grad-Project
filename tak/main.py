@@ -189,7 +189,7 @@ class Board:
 
     def check_placing_legality(self, ptr: TilePointer) -> bool:
         if not self.get_tile(ptr).is_empty():
-            raise ValueError("Tile not empty.")
+            raise PlaceError("Tile not empty.")
         return True
 
     def move(
@@ -361,7 +361,7 @@ class Game:
         while True:
             while True:
                 try:
-                    turn_input = input("Input action:").split()
+                    turn_input = input("Input action: ").split()
                     instructions = self.parse_move_input(turn_input)
                     if instructions is None:
                         raise InputError  # noqa: TRY301
@@ -398,6 +398,8 @@ class Game:
                         dst = instructions[2]
                         amount = instructions[3]
                         self.board.move(src, dst, amount, turn_color)
+                    else:
+                            raise RulesError  # noqa: TRY301
                 else:
                     raise SyntaxError("Invalid turn input")
                 break
