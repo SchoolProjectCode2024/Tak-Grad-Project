@@ -18,6 +18,14 @@ class PlaceInputError(Exception):
 class RulesError(Exception):
     pass
 
+class PlaceError(Exception):
+    pass
+
+class MoveError(Exception):
+    pass
+
+class AmountError(Exception):
+    pass
 
 class Color(StrEnum):
     Black = auto()
@@ -33,7 +41,7 @@ class PieceType(StrEnum):
     Capstone = auto()
 
     def char(self) -> str:
-        return str(self)[0].upper()
+        return str(self)[0]
 
 
 @dataclass
@@ -177,7 +185,7 @@ class Board:
         if self.check_placing_legality(ptr):
             self.add_pieces(ptr, piece)
         else:
-            raise ValueError("Ptr doesnt point to an empty tile.")
+            raise PlaceError("Ptr doesnt point to an empty tile.")
 
     def check_placing_legality(self, ptr: TilePointer) -> bool:
         if not self.get_tile(ptr).is_empty():
@@ -190,13 +198,13 @@ class Board:
         tower = []
 
         if amount not in range(len(self.get_tile(src).pieces) + 1):
-            raise ValueError("Not enough pieces in src.")
+            raise AmountError("Not enough pieces in src.")
 
         for i in range(amount):
             tower.append(self.get_tile(src).pieces[-i - 1])
 
         if not self.check_move_legality(src, dst, color, tower):
-            raise ValueError("Move not legal.")
+            raise MoveError("Move not legal.")
 
         for _ in range(amount):
             self.get_tile(src).pieces.pop()
@@ -247,15 +255,15 @@ class Board:
         self, src: TilePointer, dst: TilePointer, color: Color, tower: list
     ) -> bool:
         if self.get_tile(src).is_empty():
-            raise ValueError("Move src is empty")
+            raise MoveError("Move src is empty")
 
         neighbors = self.neighbors(src)
         move_options = list(neighbors)
         if dst not in move_options:
-            raise ValueError("Dst not a neighbor of src.")
+            raise MoveError("Dst not a neighbor of src.")
 
         if self.get_tile(src) is None or self.get_tile(dst) is None:
-            raise ValueError("Src tile or dst tile not a valid tile.")
+            raise MoveError("Src tile or dst tile not a valid tile.")
 
         dst_tile = self.get_tile(dst)
         if not (
@@ -266,10 +274,10 @@ class Board:
                 and tower[-1].type == PieceType.Capstone
             )
         ):
-            raise ValueError("Dst tile not accesible")
+            raise MoveError("Dst tile not accesible")
 
         if self.get_tile(src).top_piece().color != color:
-            raise ValueError("Src tile is not owned by you.")
+            raise MoveError("Src tile is not owned by you.")
         return True
 
     def in_board(self, ptr: TilePointer) -> bool:
@@ -341,8 +349,7 @@ class Game:
             if player.color == turn_color:
                 cur_player = player
         if self.turn_count > 2:
-            turn_color = turn_color[:1].upper() + turn_color[1:]
-            print(f"{turn_color} player's turn.")
+            print(f"{turn_color[:1].upper() + turn_color[1:]} player's turn.")
             print(f"{cur_player.piece_counter} pieces left.")
             print(f"{cur_player.capstone_counter} capstones left.")
         else:
@@ -396,10 +403,17 @@ class Game:
                 break
             except ValueError:
                 if cur_player.capstone_counter == 0:
-                    raise ValueError("Player doesn't have capstones to place.")  # noqa: B904
-                raise ValueError("Player doesn't have pieces to place.")  # noqa: B904
+                    print("Player doesn't have capstones to place.")
+                else:
+                    print("Player doesn't have pieces to place.")
             except RulesError:
                 print("First move must be placing a flat stone.")
+            except PlaceError:
+                print("Ptr doesnt point to an empty tile.")
+            except MoveError:
+                print("Move not legal.")
+            except AmountError:
+                print("Not enough pieces in src.")
 
         print(self.board)
 
@@ -474,19 +488,19 @@ class Game:
                     ):
                         stack.append(new_tile_ptr)
 
-                x_0, x_max, y_0, y_max = (False,) * 4
-                for link in visited:
-                    x, y = link
-                    if x == 0:
-                        x_0 = True
-                    if x == self.board.size - 1:
-                        x_max = True
-                    if y == 0:
-                        y_0 = True
-                    if y == self.board.size - 1:
-                        y_max = True
-                if (x_0 and x_max) or (y_0 and y_max):
-                    return True
+            x_0, x_max, y_0, y_max = (False,) * 4
+            for link in visited:
+                x, y = link
+                if x == 0:
+                    x_0 = True
+                if x == self.board.size - 1:
+                    x_max = True
+                if y == 0:
+                    y_0 = True
+                if y == self.board.size - 1:
+                    y_max = True
+            if (x_0 and x_max) or (y_0 and y_max):
+                return True
         return False
 
     def turn_color(self) -> Color:
@@ -590,7 +604,7 @@ def start_menu() -> None:
     while True:
         komi = input("Choose komi: ")
         try:
-            if not float(komi):
+            if not float(komi) and float(komi) != 0:
                 raise ValueError("Komi should be noted in multiples of 0.5")  # noqa: TRY301
             komi = float(komi)
             if komi % 0.5 != 0:
