@@ -27,6 +27,9 @@ class MoveError(Exception):
 class AmountError(Exception):
     pass
 
+class TypeInputError(Exception):
+    pass
+
 class Color(StrEnum):
     Black = auto()
     White = auto()
@@ -220,7 +223,7 @@ class Board:
             pot_tile = self.get_tile(
                 (x_og + x_shift * (i + 1), y_og + y_shift * (i + 1))
             )
-            if not pot_tile.is_empty():
+            if pot_tile and not pot_tile.is_empty():
                 pot_tile_top_type = pot_tile.top_piece().type
             else:
                 pot_tile_top_type = None
@@ -374,6 +377,8 @@ class Game:
                     print("Incorrect input - not a valid piece type.")
                 except MoveInputError:
                     print("Incorrect input - not a valid tile.")
+                except TypeInputError:
+                    print("Incorrect input - action type.")
 
             try:
                 if instructions[0] == "place":
@@ -521,7 +526,7 @@ class Game:
         if input("Press Enter to play again.") == "":
             start_menu()
 
-    def parse_move_input(self, turn_input: list) -> list | None:  # noqa: PLR0912
+    def parse_move_input(self, turn_input: list) -> list | None:  # noqa: PLR0912, PLR0915
         try:
             # parse action type
             x_coord = {
@@ -540,7 +545,7 @@ class Game:
             elif str(turn_input[0]).upper() == "M":
                 instructions.append("move")
             else:
-                raise InputError("Incorrect input - action type.")
+                raise TypeInputError("Incorrect input - action type.")  # noqa: TRY301
             # parse placing
             if instructions[0] == "place":
                 # parse placement
@@ -550,7 +555,7 @@ class Game:
                 if isinstance(self.board.get_tile((x, y)), Tile):
                     instructions.append((x, y))
                 else:
-                    raise PlaceInputError("Incorrect input - not a valid tile.")
+                    raise PlaceInputError("Incorrect input - not a valid tile.")  # noqa: TRY301
                 # parse piece type
                 if str(turn_input[2]).upper() == "F":
                     instructions.append(PieceType.FlatStone)
@@ -559,7 +564,7 @@ class Game:
                 elif str(turn_input[2]).upper() == "C":
                     instructions.append(PieceType.Capstone)
                 else:
-                    raise RulesError("Incorrect input - not a valid piece type.")
+                    raise RulesError("Incorrect input - not a valid piece type.")  # noqa: TRY301
             # parse moving
             if instructions[0] == "move":
                 # parse org placement
@@ -569,7 +574,7 @@ class Game:
                 if self.board.get_tile((x, y)) is not None:
                     instructions.append((x, y))
                 else:
-                    raise MoveInputError("Incorrect input - not a valid tile.")
+                    raise MoveInputError("Incorrect input - not a valid tile.")  # noqa: TRY301
 
                 # parse new placement
                 coordinates = list(turn_input[2])
@@ -578,7 +583,7 @@ class Game:
                 if self.board.get_tile((x, y)) is not None:
                     instructions.append((x, y))
                 else:
-                    raise MoveInputError("Incorrect input - not a valid tile.")
+                    raise MoveInputError("Incorrect input - not a valid tile.")  # noqa: TRY301
 
                 # parse moved amount
                 if len(turn_input) < 4 and instructions[0] == "move":
@@ -586,9 +591,17 @@ class Game:
                 elif int(turn_input[3]) in range(self.board.size):
                     instructions.append(int(turn_input[3]))
                 else:
-                    raise PlaceInputError("Incorrect input - improper amount.")
-        except:  # noqa: E722
-            return None
+                    raise PlaceInputError("Incorrect input - improper amount.")  # noqa: TRY301
+        except InputError:
+            print("Improper input form, try again.")
+        except PlaceInputError:
+            print("Incorrect input - not a valid tile.")
+        except RulesError:
+            print("Incorrect input - not a valid piece type.")
+        except MoveInputError:
+            print("Incorrect input - not a valid tile.")
+        except TypeInputError:
+            print("Incorrect input - action type.")
         return instructions
 
 
