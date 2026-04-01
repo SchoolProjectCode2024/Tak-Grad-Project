@@ -474,19 +474,19 @@ class Game:
                     ):
                         stack.append(new_tile_ptr)
 
-            x_0, x_max, y_0, y_max = (False,) * 4
-            for link in visited:
-                x, y = link
-                if x == 0:
-                    x_0 = True
-                if x == self.board.size - 1:
-                    x_max = True
-                if y == 0:
-                    y_0 = True
-                if y == self.board.size - 1:
-                    y_max = True
-            if (x_0 and x_max) or (y_0 and y_max):
-                return True
+                x_0, x_max, y_0, y_max = (False,) * 4
+                for link in visited:
+                    x, y = link
+                    if x == 0:
+                        x_0 = True
+                    if x == self.board.size - 1:
+                        x_max = True
+                    if y == 0:
+                        y_0 = True
+                    if y == self.board.size - 1:
+                        y_max = True
+                if (x_0 and x_max) or (y_0 and y_max):
+                    return True
         return False
 
     def turn_color(self) -> Color:
