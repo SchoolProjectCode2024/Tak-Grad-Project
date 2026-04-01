@@ -3,6 +3,22 @@ from dataclasses import dataclass
 from enum import StrEnum, auto
 
 
+class InputError(Exception):
+    pass
+
+
+class MoveInputError(Exception):
+    pass
+
+
+class PlaceInputError(Exception):
+    pass
+
+
+class RulesError(Exception):
+    pass
+
+
 class Color(StrEnum):
     Black = auto()
     White = auto()
@@ -318,13 +334,14 @@ class Game:
         self.player_black = Player(Color.Black, size)
         self.turn_count = 0
 
-    def turn(self) -> None:  # noqa: PLR0912
+    def turn(self) -> None:  # noqa: PLR0912, PLR0915
         self.turn_count = self.turn_count + 1
         turn_color = self.turn_color()
         for player in (self.player_white, self.player_black):
             if player.color == turn_color:
                 cur_player = player
         if self.turn_count > 2:
+            turn_color = turn_color[:1].upper() + turn_color[1:]
             print(f"{turn_color} player's turn.")
             print(f"{cur_player.piece_counter} pieces left.")
             print(f"{cur_player.capstone_counter} capstones left.")
@@ -332,20 +349,31 @@ class Game:
             colors = [Color.White, Color.Black]
             colors.remove(turn_color)
             color = colors[0]
+            color = color[:1].upper() + color[1:]
             print(f"{color} player's turn.")
         while True:
             while True:
                 try:
                     turn_input = input("Input action:").split()
                     instructions = self.parse_move_input(turn_input)
+                    if instructions is None:
+                        raise InputError  # noqa: TRY301
                     break
-                except ValueError:
+                except InputError:
                     print("Improper input form, try again.")
+                except PlaceInputError:
+                    print("Incorrect input - not a valid tile.")
+                except RulesError:
+                    print("Incorrect input - not a valid piece type.")
+                except MoveInputError:
+                    print("Incorrect input - not a valid tile.")
 
             try:
                 if instructions[0] == "place":
                     ptr = instructions[1]
                     piece = Piece(instructions[2], turn_color)
+                    if self.turn_count < 2 and piece.type != PieceType.FlatStone:
+                        raise RulesError("First move must be placing a flat stone.")  # noqa: TRY301
 
                     if piece.type == PieceType.Capstone:
                         if cur_player.capstone_counter == 0:
@@ -358,15 +386,20 @@ class Game:
                     self.board.place(ptr, piece)
 
                 elif instructions[0] == "move":
-                    src = instructions[1]
-                    dst = instructions[2]
-                    amount = instructions[3]
-                    self.board.move(src, dst, amount, turn_color)
+                    if self.turn_count > 2:
+                        src = instructions[1]
+                        dst = instructions[2]
+                        amount = instructions[3]
+                        self.board.move(src, dst, amount, turn_color)
                 else:
                     raise SyntaxError("Invalid turn input")
                 break
             except ValueError:
-                print("Not a valid action, try again.")
+                if cur_player.capstone_counter == 0:
+                    raise ValueError("Player doesn't have capstones to place.")  # noqa: B904
+                raise ValueError("Player doesn't have pieces to place.")  # noqa: B904
+            except RulesError:
+                print("First move must be placing a flat stone.")
 
         print(self.board)
 
@@ -472,82 +505,99 @@ class Game:
         if input("Press Enter to play again.") == "":
             start_menu()
 
-    def parse_move_input(self, turn_input: list) -> list:  # noqa: PLR0912
-        # parse action type
-        x_coord = {
-            ("a"): 0,
-            ("b"): 1,
-            ("c"): 2,
-            ("d"): 3,
-            ("e"): 4,
-            ("f"): 5,
-            ("g"): 6,
-            ("h"): 7,
-        }
-        instructions = []
-        if str(turn_input[0]).upper() == "P":
-            instructions.append("place")
-        elif str(turn_input[0]).upper() == "M":
-            instructions.append("move")
-        else:
-            raise ValueError("Incorrect input - action type.")
-        # parse placing
-        if instructions[0] == "place":
-            # parse placement
-            coordinates = list(turn_input[1])
-            x = x_coord[coordinates[0].lower()]
-            y = self.board.size - int(coordinates[1])
-            if isinstance(self.board.get_tile((x, y)), Tile):
-                instructions.append((x, y))
+    def parse_move_input(self, turn_input: list) -> list | None:  # noqa: PLR0912
+        try:
+            # parse action type
+            x_coord = {
+                ("a"): 0,
+                ("b"): 1,
+                ("c"): 2,
+                ("d"): 3,
+                ("e"): 4,
+                ("f"): 5,
+                ("g"): 6,
+                ("h"): 7,
+            }
+            instructions = []
+            if str(turn_input[0]).upper() == "P":
+                instructions.append("place")
+            elif str(turn_input[0]).upper() == "M":
+                instructions.append("move")
             else:
-                raise ValueError("Incorrect input - not a valid tile.")
-            # parse piece type
-            if str(turn_input[2]).upper() == "F":
-                instructions.append(PieceType.FlatStone)
-            elif str(turn_input[2]).upper() == "S":
-                instructions.append(PieceType.StandingStone)
-            elif str(turn_input[2]).upper() == "C":
-                instructions.append(PieceType.Capstone)
-            else:
-                raise ValueError("Incorrect input - not a valid piece type.")
-        # parse moving
-        if instructions[0] == "move":
-            # parse org placement
-            coordinates = list(turn_input[1])
-            x = x_coord[coordinates[0]]
-            y = self.board.size - int(coordinates[1])
-            if self.board.get_tile((x, y)) is not None:
-                instructions.append((x, y))
-            else:
-                raise ValueError("Incorrect input - not a valid tile.")
+                raise InputError("Incorrect input - action type.")
+            # parse placing
+            if instructions[0] == "place":
+                # parse placement
+                coordinates = list(turn_input[1])
+                x = x_coord[coordinates[0].lower()]
+                y = self.board.size - int(coordinates[1])
+                if isinstance(self.board.get_tile((x, y)), Tile):
+                    instructions.append((x, y))
+                else:
+                    raise PlaceInputError("Incorrect input - not a valid tile.")
+                # parse piece type
+                if str(turn_input[2]).upper() == "F":
+                    instructions.append(PieceType.FlatStone)
+                elif str(turn_input[2]).upper() == "S":
+                    instructions.append(PieceType.StandingStone)
+                elif str(turn_input[2]).upper() == "C":
+                    instructions.append(PieceType.Capstone)
+                else:
+                    raise RulesError("Incorrect input - not a valid piece type.")
+            # parse moving
+            if instructions[0] == "move":
+                # parse org placement
+                coordinates = list(turn_input[1])
+                x = x_coord[coordinates[0]]
+                y = self.board.size - int(coordinates[1])
+                if self.board.get_tile((x, y)) is not None:
+                    instructions.append((x, y))
+                else:
+                    raise MoveInputError("Incorrect input - not a valid tile.")
 
-            # parse new placement
-            coordinates = list(turn_input[2])
-            x = x_coord[coordinates[0]]
-            y = self.board.size - int(coordinates[1])
-            if self.board.get_tile((x, y)) is not None:
-                instructions.append((x, y))
-            else:
-                raise ValueError("Incorrect input - not a valid tile.")
+                # parse new placement
+                coordinates = list(turn_input[2])
+                x = x_coord[coordinates[0]]
+                y = self.board.size - int(coordinates[1])
+                if self.board.get_tile((x, y)) is not None:
+                    instructions.append((x, y))
+                else:
+                    raise MoveInputError("Incorrect input - not a valid tile.")
 
-            # parse moved amount
-            if len(turn_input) < 4 and instructions[0] == "move":
-                instructions.append(1)
-            elif int(turn_input[3]) in range(self.board.size):
-                instructions.append(int(turn_input[3]))
-            else:
-                raise ValueError("Incorrect input - improper amount.")
-
+                # parse moved amount
+                if len(turn_input) < 4 and instructions[0] == "move":
+                    instructions.append(1)
+                elif int(turn_input[3]) in range(self.board.size):
+                    instructions.append(int(turn_input[3]))
+                else:
+                    raise PlaceInputError("Incorrect input - improper amount.")
+        except:  # noqa: E722
+            return None
         return instructions
 
 
 def start_menu() -> None:
-    size = int(input("Choose board size (4 - 8): "))
-    if size not in range(4, 9):
-        raise ValueError("Not a valid board size")
-    komi = float(input("Choose komi: "))
-    if komi % 0.5 != 0:
-        raise ValueError("Komi should be noted in multiples of 0.5")
+    while True:
+        size = input("Choose board size (4 - 8): ")
+        try:
+            if len(size) == 1 and size.isdigit():
+                size = int(size)
+                if size in range(4, 9):
+                    break
+            raise ValueError("Not a valid board size.")  # noqa: TRY301
+        except ValueError:
+                print("Not a valid board size.")
+    while True:
+        komi = input("Choose komi: ")
+        try:
+            if not float(komi):
+                raise ValueError("Komi should be noted in multiples of 0.5")  # noqa: TRY301
+            komi = float(komi)
+            if komi % 0.5 != 0:
+                raise ValueError("Komi should be noted in multiples of 0.5")  # noqa: TRY301
+            break
+        except ValueError:
+            print("Komi should be noted in multiples of 0.5")
     cur_game = Game(size, komi)
     print(cur_game.board)
     cur_game.running_game()
